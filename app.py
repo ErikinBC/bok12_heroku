@@ -78,7 +78,7 @@ app.layout = html.Div([
     [Input("btn", "n_clicks")]
 )
 def func(n_clicks):
-    if os.path.exists('tmp.csv'):
+    if os.path.exists('tmp.csv') and n_clicks is not None:
         print('exists')
         df = pd.read_csv('tmp.csv')
         fn = 'poem_' + datetime.now().strftime('%Y_%m_%d_%H_%M_%S') + '.csv'
@@ -99,6 +99,7 @@ def update_output(idx, n_clicks, txt):
     cipher_map = ', '.join(pd.DataFrame(xmap_idx).apply(lambda x: x[0]+':'+x[1],1).to_list())
     punct = ''.join(['\\'+z for z in list(string.punctuation)])
     if n_clicks > 0:
+        print('n_clicks: %i' % n_clicks)
         txt = pd.Series(txt).str.replace('[^\\s'+punct + jalphabet12 + ']','',regex=True)[0]
         val1 = 'original:\n' + txt
         ttxt = alpha_trans(txt, xmap_idx)
