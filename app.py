@@ -2,6 +2,7 @@
 # visit http://127.0.0.1:8050/ in your web browser
 
 import os
+import socket
 import pandas as pd
 import numpy as np
 import string
@@ -22,19 +23,24 @@ from dash_extensions.snippets import send_data_frame
 from funs import alpha_trans, get_cipher, annot_vocab_cipher 
 
 
-app = dash.Dash(__name__)
+#app = dash.Dash(__name__)
+app = dash.Dash()
+server = app.server
 
 if os.path.exists('tmp.csv'):
     os.remove('tmp.csv')
 
 # Load in the data
-df_idx = pd.read_csv('dat_12.csv', usecols=['idx','n'])
+path_idx = 'https://raw.githubusercontent.com/ErikinBC/bok12_heroku/main/dat_12.csv'
+df_idx = pd.read_csv(path_idx, usecols=['idx','n'])
 df_idx = df_idx.rename_axis('uix').reset_index()
-df_words = pd.read_csv('words_etoaisnrlchd.csv')
+path_words = 'https://raw.githubusercontent.com/ErikinBC/bok12_heroku/main/words_etoaisnrlchd.csv'
+df_words = pd.read_csv(path_words)
 words12 = df_words.word
 jalphabet12 = 'etoaisnrlchd'
 alphabet12 = list(jalphabet12)
-pos_spacy = pd.read_csv('pos_spacy.csv')
+path_spacy = 'https://raw.githubusercontent.com/ErikinBC/bok12_heroku/main/pos_spacy.csv'
+pos_spacy = pd.read_csv(path_spacy)
 
 lipsum = 'rant tired sad ant'
 
@@ -117,6 +123,8 @@ def update_output(idx, n_clicks, txt):
 
 
 if __name__ == '__main__':
-    app.run_server(host='127.0.0.1', port='8050', debug=True)
-    server = app.server
+    if socket.gethostname() == 'RT5362WL-GGB':
+        app.run_server(host='127.0.0.1', port='8050', debug=True)
+    else:
+        app.run_server(debug=True)
 
