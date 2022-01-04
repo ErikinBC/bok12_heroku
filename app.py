@@ -2,28 +2,21 @@
 # visit http://127.0.0.1:8050/ in your web browser
 
 import os
-import socket
-import pandas as pd
-import numpy as np
-import string
-from datetime import datetime
-
-import io
-
 import dash
-from dash import no_update
 import dash_table
-from dash.dependencies import Input, Output, State
-import dash_html_components as html
+import socket
+import string
+import pandas as pd
 import dash_core_components as dcc
-import dash_bootstrap_components as dbc
+import dash_html_components as html
+from dash import no_update
+from datetime import datetime
 from dash_extensions import Download
+from dash.dependencies import Input, Output, State
 from dash_extensions.snippets import send_data_frame
 
 from funs import alpha_trans, get_cipher, annot_vocab_cipher 
 
-
-#app = dash.Dash(__name__)
 app = dash.Dash()
 server = app.server
 
@@ -49,9 +42,11 @@ style_output = {'display': 'inline-block', 'width': '400px',
                 'whiteSpace': 'pre-line', 'font-size':'110%'}
 style_textarea = {'height': 200, 'width': 400}
 
+letters = 'a, c, d, e, h, i, l, n, o, r, s, t'
+
 app.layout = html.Div([
-    html.H2("Create your own enciphered poem"),
-    html.H3("Using only 12 letters: a, c, d, e, h, i, l, n, o, r, s, t"),
+    html.H2('Create your own enciphered poem'),
+    html.H3('Using only 12 letters: %s' % letters),
     html.Br(),
     html.Div([
         html.Div(dcc.Textarea(id='text1',value=lipsum,style=style_textarea), style=style_row),
