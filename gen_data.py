@@ -19,8 +19,10 @@ assert len(letters) % 2 == 0, 'There are an odd number of letters!'
 
 # Load modules
 import os
+import requests
 import numpy as np
 import pandas as pd
+from time import time
 from funs_cipher import encipherer
 
 ########################
@@ -89,9 +91,25 @@ df_12 = df_12.merge(df_1gram,'inner')
 df_12 = df_12.sort_values('n',ascending=False).reset_index(drop=True)
 
 # (v) Add on definitions where possible
-for word in df_12['word']:
-    word
-    break
+url_api = 'https://api.dictionaryapi.dev/api/v2/entries/en'
+stime = time()
+n_word = len(df_12)
+holder = []
+for i, word in enumerate(df_12['word']):
+    if (i+1) % 10 == 0:
+        dtime = time() - stime
+        rate = (i+1)/dtime
+        n_left = n_word-i-1
+        eta = n_left / rate
+        print('Iteration %i of %i (ETA: %i seconds)' % (i+1, n_word, eta))
+    url_word = os.path.join(url_api, word)
+    json = requests.get(url_word).text
+    if not 'No Definitions Found' in json:
+        json = pd.read_json(json)
+        pos = json['meanings'][0][0]['partOfSpeech']
+        res = pd.DataFrame({'word':word, 'pos':pos},index=[i])
+        holder.append(res)
+res_dict = pd.concat(holder)
 
 ##########################
 # --- (2) ENCIPHERED --- #
