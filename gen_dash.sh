@@ -5,9 +5,9 @@
 
 unset letters
 
-while getopts "a:" opt; do
+while getopts "l:" opt; do
    case "$opt" in
-      a ) letters="$OPTARG" ;;
+      l ) letters="$OPTARG" ;;
    esac
 done
 
@@ -20,9 +20,12 @@ fi
 
 echo "---letters to be used: $letters ---"
 
+# SET UP CONDA ENVIRONMENT!!!
+# conda activate bok
+
 # Call python script to generate the words and data
 echo "Running gen_data.py"
-python gen_data.py --letters $letters
+# python gen_data.py --letters $letters
 
 
 echo "~~~ End of gen_dash.sh ~~~"
