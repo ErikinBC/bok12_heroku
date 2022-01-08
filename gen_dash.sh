@@ -40,12 +40,13 @@ conda list -e | awk '{split($0,a,"="); print a[1]"=="a[2]}' | grep -v "_" | grep
 echo "Running gen_data.py"
 python gen_data.py --letters $letters
 
-echo "Building heroku app"
+echo "Building heroku app (change cipher-poem!)"
+name_heroko="cipher-poem"
 sudo heroku login
-sudo heroku create cipher-poem
+sudo heroku create $name_heroko
+git remote add heroku https://git.heroku.com/$name_heroko.git
 git add .
-git commit -m "files for cipher_poem"
-
+git commit -m "files for $name_heroku"
 sudo git push heroku main
 
 
