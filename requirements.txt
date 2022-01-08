@@ -1,5 +1,4 @@
 brotli==1.0.9
-brotli-bin==1.0.9
 brotli-python==1.0.9
 brotlipy==0.7.0
 bzip2==1.0.8
