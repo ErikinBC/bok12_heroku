@@ -7,21 +7,19 @@ parser = argparse.ArgumentParser()
 parser.add_argument('--letters', type=str, help='Even number of letters (e.g. abcd)')
 args = parser.parse_args()
 print(args)
-letters = list(args.letters)
+letters = args.letters
 lst_letters = list(letters)
 print('letters: %s' % (lst_letters))
-
-# for debugging
-letters = 'abcdef'
-lst_letters = list(letters)
-
 assert len(letters) % 2 == 0, 'There are an odd number of letters!'
 
-# import sys
-# sys.exit('stop here')
+# # for debugging
+# letters = 'abcdef'
+# lst_letters = list(letters)
 
 # Load modules
 import os
+import pickle
+import requests
 import numpy as np
 import pandas as pd
 from time import time
@@ -29,7 +27,6 @@ from zipfile import ZipFile
 from funs_support import download
 from funs_cipher import encipherer
 from string import ascii_lowercase as lowercase
-
 
 # Get world list from Xenotext
 xenotext = pd.read_csv('xenotext.txt',header=None)[0].to_list()
@@ -41,7 +38,6 @@ xenowords = np.unique(xenotext)
 # --- (1) DICTIONARY --- #
 
 # source: http://wordlist.aspell.net/12dicts/
-
 url_dict='https://cfhcable.dl.sourceforge.net/project/wordlist/12Dicts/6.0/12dicts-6.0.2.zip'
 if not os.path.exists('dicts'):
     print('Downloading dictionary')
@@ -102,29 +98,26 @@ df_dict = df_dict.drop_duplicates().reset_index(drop=True)
 # source: norvig.com
 url_1gram = 'http://norvig.com/ngrams/count_1w.txt'
 fn_1gram = 'words_ngram.csv'
-
-if not os.path.exists(fn_1gram):
-    print('Downloading word frequency (1-grams)')
-    download(url=url_1gram, path=fn_1gram)
-else:
-    print('Word frequency file already exists')
-
+download(url=url_1gram, path=fn_1gram, overwrite=False)
 df_1gram = pd.read_csv(fn_1gram, sep='\t',header=None,na_values='',keep_default_na=False)
 df_1gram.rename(columns={0:'word', 1:'n'}, inplace=True)
-# df_1gram['n'] = df_1gram['n'] / df_1gram['n'].max()
+
 
 ###########################
 # --- (3) DEFINITIONS --- #
 
 # source: https://api.dictionaryapi.dev/api/v2/entries/en/<word>
 url_dict='https://raw.githubusercontent.com/meetDeveloper/freeDictionaryAPI/master/meta/wordList/english.txt'
-
+fn_dict=url_dict.split('/')[-1]
+download(url=url_dict, path=fn_dict)
 df_def = pd.read_csv(url_dict,header=None,on_bad_lines='skip')
 df_def = df_def.rename(columns={0:'word'}).assign(has_def=True)
 
 # source: https://github.com/krishnakt031990
 url_acro = 'https://raw.githubusercontent.com/krishnakt031990/Crawl-Wiki-For-Acronyms/master/AcronymsFile.csv'
-df_acro = pd.read_csv(url_acro,on_bad_lines='skip',header=None)
+fn_acro = url_acro.split('/')[-1]
+download(url=url_acro, path=fn_acro)
+df_acro = pd.read_csv(fn_acro, on_bad_lines='skip', header=None)
 df_acro.rename(columns={0:'word'}, inplace=True)
 df_acro['word'] = df_acro['word'].str.strip()
 df_acro['word'] = df_acro['word'].str.split('\\s\\-',1,True)[0]
@@ -144,8 +137,8 @@ df_merge = df_merge.merge(df_def,'left').fillna(False)
 # (iii) Subset to defintion only
 df_merge = df_merge.query('has_def')
 df_merge.drop(columns='has_def', inplace=True)
-# (iv) Add on possible acronoym
-df_merge = df_merge.merge(df_acro,'left').fillna(False)
+# # (iv) Add on possible acronoym
+# df_merge = df_merge.merge(df_acro,'left').fillna(False)
 # (v) Sort
 df_merge.sort_values('n',ascending=False,inplace=True)
 df_merge.reset_index(drop=True,inplace=True)
@@ -163,33 +156,38 @@ enc = encipherer(df_english=df_merge, cn_word='word')
 enc.set_letters(letters=letters)
 enc.get_pos()
 enc.score_ciphers(cn_weight='n')
-enc.df_score
-enc.set_encipher(idx_pairing=1)
-enc.get_corpus()
-enc.df_encipher
 
 
 ###############################
 # --- (6) GET DEFINITIONS --- #
 
-# url_api = 'https://api.dictionaryapi.dev/api/v2/entries/en'
-# stime = time()
-# n_word = len(df_12)
-# holder = []
-# for i, word in enumerate(df_12['word']):
-#     if (i+1) % 10 == 0:
-#         dtime = time() - stime
-#         rate = (i+1)/dtime
-#         n_left = n_word-i-1
-#         eta = n_left / rate
-#         print('Iteration %i of %i (ETA: %i seconds)' % (i+1, n_word, eta))
-#     url_word = os.path.join(url_api, word)
-#     json = requests.get(url_word).text
-#     if not 'No Definitions Found' in json:
-#         json = pd.read_json(json)
-#         pos = json['meanings'][0][0]['partOfSpeech']
-#         res = pd.DataFrame({'word':word, 'pos':pos},index=[i])
-#         holder.append(res)
-# res_dict = pd.concat(holder)
+url_api = 'https://api.dictionaryapi.dev/api/v2/entries/en'
+stime = time()
+n_word = len(enc.word_list)
+holder = []
+for i, word in enumerate(enc.word_list):
+    if (i+1) % 10 == 0:
+        dtime = time() - stime
+        rate = (i+1)/dtime
+        n_left = n_word-i-1
+        eta = n_left / rate
+        print('Definition %i of %i (ETA: %i seconds)' % (i+1, n_word, eta))
+    url_word = os.path.join(url_api, word)
+    json = requests.get(url_word).text
+    if not 'No Definitions Found' in json:
+        json = pd.read_json(json)
+        # Get definitions and parts of speech
+        lst_def = [k['definitions'][0]['definition'].replace('.','') for k in json['meanings'][0]]
+        lst_pos = [k['partOfSpeech'] for k in json['meanings'][0]]
+        pos_def = ' | '.join([p+': '+d for d,p in zip(lst_def, lst_pos)])
+        res = pd.DataFrame({'word':word, 'def':pos_def},index=[i])
+        holder.append(res)
+res_def = pd.concat(holder)
+# Add on the relevant definitions
+enc.df_english = enc.df_english.merge(res_def,'left','word').fillna('')
 
+# Pickle
+with open('enc.pickle', 'wb') as handle:
+    pickle.dump(enc, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
+print('~~~ End of gen_data.py ~~~')

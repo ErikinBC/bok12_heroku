@@ -1,5 +1,6 @@
 # Functions to support enciphered alphabet
 
+from time import time
 import nltk
 import string
 import numpy as np
@@ -116,11 +117,17 @@ class encipherer():
         assert (cn_dtype == float) | (cn_dtype == int), 'cn_weight needs to be a float/int not %s' % cn_dtype
         n_encipher = self.idx_max['n_encipher']
         holder = np.zeros([n_encipher,2])
+        self.word_list = []
+        stime = time()
         for i in range(1, n_encipher+1):
             if (i + 1) % 25 == 0:
-                print(i+1)
+                dtime = time() - stime
+                rate, n_left = i/dtime, n_encipher-i
+                eta = n_left / rate
+                print('Cipher %i of %i (ETA: %i seconds)' % (i+1, n_encipher, eta))
             self.set_encipher(idx_pairing=i)
             self.get_corpus()
+            self.word_list = np.union1d(self.word_list,self.df_encipher['word'])
             n_i = self.df_encipher.shape[0]
             w_i = self.df_encipher[cn_weight].sum()
             holder[i-1] = [n_i, w_i]
@@ -142,7 +149,7 @@ class encipherer():
         self.df_english.insert(self.df_english.shape[1],'pos',pos_lst)
         pos_def = pd.Series([capture(nltk.help.upenn_tagset,p) for p in self.df_english['pos'].unique()])
         pos_def = pos_def.str.split('\\:\\s|\\n',expand=True,n=3).iloc[:,:2]
-        pos_def.rename(columns={0:'pos',1:'def'},inplace=True)
+        pos_def.rename(columns={0:'pos',1:'desc'},inplace=True)
         self.df_english = self.df_english.merge(pos_def, 'left', 'pos')
 
     """
@@ -184,7 +191,7 @@ class encipherer():
     txt:        Any string or Series
     """
     def alpha_trans(self, txt):
-        # txt='abod';txt=pd.Series(['abcd','dcba'])
+        # Remove any of the letters not to be found
         if not isinstance(txt, pd.Series):
             txt = pd.Series(txt)
         z = txt.str.translate(self.trans)
