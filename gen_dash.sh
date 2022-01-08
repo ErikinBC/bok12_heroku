@@ -34,7 +34,7 @@ source $path_conda
 }
 
 # Export requirement list
-conda list -e | awk '{split($0,a,"="); print a[1]"=="a[2]}' | grep -v "_" | grep -v "#" | grep -v brotli-bin > requirements.txt
+conda list -e | awk '{split($0,a,"="); print a[1]"=="a[2]}' | grep -v "_" | grep -v "#" | grep -v brotli > requirements.txt
 
 # Call python script to generate the words and data
 echo "Running gen_data.py"
