@@ -6,11 +6,8 @@ import dash
 import pickle
 import socket
 import string
-import dash_table
 import pandas as pd
-import dash_core_components as dcc
-import dash_html_components as html
-from dash import no_update
+from dash import no_update, dash_table, dcc, html
 from datetime import datetime
 from dash_extensions import Download
 from dash.dependencies import Input, Output, State
