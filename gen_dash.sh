@@ -24,17 +24,18 @@ echo "---letters to be used: $letters ---"
 path_conda=$(which conda | awk '{split($0,a,"/bin"); print a[1]}')
 path_conda=$path_conda/etc/profile.d/conda.sh
 source $path_conda
+lst_requirements=$(cat requirements.txt)
 {
    conda activate heroku
 } || {
    echo "heroku environment not found in conda, creating"
    conda create --name heroku python=3.10
    conda activate heroku
-   conda install pandas numpy plotnine nltk requests dash dash-extensions gunicorn
+   conda install $lst_requirements
 }
 
-# Export requirement list
-conda list -e | awk '{split($0,a,"="); print a[1]"=="a[2]}' | grep -v "_" | grep -v "#" | grep -v brotli > requirements.txt
+# Export requirement list in pip format
+conda list -e | awk '{split($0,a,"="); print a[1]"=="a[2]}' | grep -v "_" | grep -v "#" | grep -v brotli | grep -v bzip> requirements.txt
 
 # Call python script to generate the words and data
 echo "Running gen_data.py"
