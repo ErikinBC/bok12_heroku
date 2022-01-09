@@ -13,7 +13,7 @@ print('letters: %s' % (lst_letters))
 assert len(letters) % 2 == 0, 'There are an odd number of letters!'
 
 # # for debugging
-# letters = 'abcdef'
+# letters = 'etoaisnrlchdum'
 # lst_letters = list(letters)
 
 # Load modules
@@ -22,7 +22,7 @@ import pickle
 import requests
 import numpy as np
 import pandas as pd
-from time import time
+from time import time, sleep
 from zipfile import ZipFile
 from funs_support import download
 from funs_cipher import encipherer
@@ -152,37 +152,48 @@ assert len(word_diff) == 0, 'Missing words: %s' % word_diff
 # --- (5) ENCIPHER --- #
 
 # Run the encipherment
-enc = encipherer(df_english=df_merge, cn_word='word')
+enc = encipherer(df_english=df_merge, cn_word='word', cn_weight='n')
 enc.set_letters(letters=letters)
 enc.get_pos()
-enc.score_ciphers(cn_weight='n')
+enc.score_ciphers(set_best=True)
 
 
 ###############################
 # --- (6) GET DEFINITIONS --- #
 
+# 300 request per 5 minutes!!!!
+
 url_api = 'https://api.dictionaryapi.dev/api/v2/entries/en'
-stime = time()
 n_word = len(enc.word_list)
 holder = []
 for i, word in enumerate(enc.word_list):
+    stime = time()
     if (i+1) % 10 == 0:
-        dtime = time() - stime
-        rate = (i+1)/dtime
-        n_left = n_word-i-1
-        eta = n_left / rate
-        print('Definition %i of %i (ETA: %i seconds)' % (i+1, n_word, eta))
+        print('Definition %i of %i' % (i+1, n_word))
     url_word = os.path.join(url_api, word)
     json = requests.get(url_word).text
     if not 'No Definitions Found' in json:
         json = pd.read_json(json)
         # Get definitions and parts of speech
-        lst_def = [k['definitions'][0]['definition'].replace('.','') for k in json['meanings'][0]]
-        lst_pos = [k['partOfSpeech'] for k in json['meanings'][0]]
+        meanings = json['meanings'][0]
+        if 'definitions' in meanings[0]:
+            lst_def = [k['definitions'][0]['definition'].replace('.','') for k in meanings]
+        else:
+            lst_def = ['']
+        if 'partOfSpeech' in meanings[0]:
+            lst_pos = [k['partOfSpeech'] for k in meanings]
+        else:
+            lst_pos = ['']
         pos_def = ' | '.join([p+': '+d for d,p in zip(lst_def, lst_pos)])
         res = pd.DataFrame({'word':word, 'def':pos_def},index=[i])
         holder.append(res)
+    dtime = time() - stime
+    # Need to ensure we do not submit more than one request per second
+    if dtime < 1:
+        sleep(1 - dtime + 0.01)
 res_def = pd.concat(holder)
+res_def.to_csv('res_def.csv',index=False)
+# res_def = pd.read_csv('res_def.csv')
 # Add on the relevant definitions
 enc.df_english = enc.df_english.merge(res_def,'left','word').fillna('')
 

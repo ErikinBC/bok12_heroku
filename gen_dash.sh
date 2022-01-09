@@ -4,21 +4,25 @@
 # Will exhaustively search over letters provided to enable indexing
 
 unset letters
+unset name_heroko
 
-while getopts "l:" opt; do
-   case "$opt" in
-      l ) letters="$OPTARG" ;;
-   esac
+usage() { echo -e "At least one argument is empty\nUsage: $0 bash gen_dash.sh -l [letters] -n [your-app-name]\nExample: bash gen_dash.sh -l abcdef -n cipher-poem" 1>&2; exit 1; }
+
+while getopts ":l:n:" o; do
+    case "${o}" in
+        l) letters=${OPTARG} ;;
+        n) name_heroko=${OPTARG} ;;
+        *) usage ;;
+    esac
 done
+shift $((OPTIND-1))
 
-# Print helpFunction in case parameters are empty
-if [ -z "$letters" ]; then
-   echo "Some or all of the parameters are empty";
-   echo "Usage: bash gen_dash.sh -l abcdef"
-   return
+if [ -z "${letters}" ] || [ -z "${name_heroko}" ]; then
+    usage
 fi
 
-echo "---letters to be used: $letters ---"
+echo "letters = ${letters}"
+echo "name_heroko = ${name_heroko}"
 
 # Source conda to allow for "activate"
 path_conda=$(which conda | awk '{split($0,a,"/bin"); print a[1]}')
@@ -34,15 +38,11 @@ lst_requirements=$(cat requirements.txt)
    conda install $lst_requirements
 }
 
-# Export requirement list in pip format
-conda list -e | awk '{split($0,a,"="); print a[1]"=="a[2]}' | grep -v "_" | grep -v "#" | grep -v brotli | grep -v bzip> requirements.txt
-
 # Call python script to generate the words and data
 echo "Running gen_data.py"
 python gen_data.py --letters $letters
 
 echo "Building heroku app (change cipher-poem!)"
-name_heroko="cipher-poem"
 sudo heroku login
 sudo heroku create $name_heroko
 git remote add heroku https://git.heroku.com/$name_heroko.git

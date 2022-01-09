@@ -1,12 +1,12 @@
 # Functions to support enciphered alphabet
 
-from time import time
 import nltk
 import string
 import numpy as np
 import pandas as pd
+from time import time
 from scipy.special import comb
-from funs_support import capture
+from funs_support import capture, str_replace, str_translate
 
 """
 df_english:         A DataFrame with a column of words (and other annotations)
@@ -16,12 +16,13 @@ n_letters:          If letters is None, how many letters to pick from
 idx_letters:        If letters is None, which combination index to pick from
 """
 class encipherer():
-    def __init__(self, df_english, cn_word):
-        # df_english=df_12.copy();cn_word='word'
+    def __init__(self, df_english, cn_word, cn_weight):
+        # df_english=df_merge.copy();cn_word='word';cn_weight='w'
         assert isinstance(df_english, pd.DataFrame), 'df_english needs to be a DataFrame'
-        self.df_english = df_english.rename(columns={cn_word:'word'}).drop_duplicates()
+        cn_dtype = df_english.dtypes[cn_weight]
+        assert (cn_dtype == float) | (cn_dtype == int), 'cn_weight needs to be a float/int not %s' % cn_dtype
+        self.df_english = df_english.rename(columns={cn_word:'word', cn_weight:'weight'}).drop_duplicates()
         assert not self.df_english['word'].duplicated().any(), 'Duplicate words found'
-        # self.df_english['lword'] = self.df_english['word'].str.lower()
         self.latin = string.ascii_lowercase
         self.n = len(self.latin)
 
@@ -55,8 +56,9 @@ class encipherer():
         self.k = int(self.n_letters/2)
         # Remove words that have a letter outside of the lipogram
         words = self.df_english['word'].str.lower()
-        regex_lipo = '[%s]' % ''.join(np.setdiff1d(list(self.latin), self.letters))
-        self.df_english = self.df_english[~words.str.contains(regex_lipo)]
+        self.regex_lipo = '[%s]' % ''.join(np.setdiff1d(list(self.latin), self.letters))
+        self.regex_keep = '[^%s]' % ''.join(self.letters)
+        self.df_english = self.df_english[~words.str.contains(self.regex_lipo)]
         self.df_english.reset_index(drop=True, inplace=True)
 
     
@@ -96,25 +98,36 @@ class encipherer():
     """
     def get_corpus(self):
         # Pure letters only
-        lwords = self.df_english['word'].str.lower()
-        lwords = lwords.str.replace('[^%s]' % ''.join(self.letters),'',regex=True)
+        lwords = pd.Series(str_replace(self.df_english['word'].str.lower(), self.regex_keep, ''))
+        # Find word matches
         words_trans = self.alpha_trans(lwords)
         idx_match = lwords.isin(words_trans)
         tmp1 = self.df_english['word'][idx_match]
         tmp2 = self.alpha_trans(self.df_english['word'])[idx_match]
-        self.df_encipher = pd.DataFrame({'word':tmp1,'mirror':tmp2})
-        self.df_encipher.reset_index(drop=True,inplace=True)
+        # Combine with annotations
+        tmp_df = pd.DataFrame({'num':range(len(tmp1)),'x':tmp1,'y':tmp2})    
+        tmp_df = tmp_df.melt('num',None,'tt','word')
+        tmp_df = tmp_df.merge(self.df_english,'left')
+        cn_val = ['word', 'weight']
+        if hasattr(self, 'pos_def'):
+            cn_val += ['pos']
+        cn_val += list(np.setdiff1d(tmp_df.columns,['num','tt']+cn_val))
+        tmp_df = tmp_df.pivot_table(values=cn_val,index='num',columns='tt',aggfunc=lambda x: x)[cn_val]
+        # Save as df_encipher
+        tmp_df.columns = ['_'.join(col) for col in tmp_df.columns.values]
         # Add on any other columns from the original dataframe
-        self.df_encipher = self.df_encipher.merge(self.df_english)
+        self.df_encipher = tmp_df.reset_index().assign(num=lambda x: x['num']+1)
+        cn_weight = ['weight_x', 'weight_y']
+        self.df_encipher = self.df_encipher.assign(weight=lambda x: x[cn_weight].min(1)).drop(columns=cn_weight)
+        
 
     """
     Iterate through all possible cipher combinations
     cn_weight:          A column from df_english that has a numerical score
     set_best:           Should the highest scoring index be set for idx_pairing?
     """
-    def score_ciphers(self, cn_weight, set_best=True):
-        cn_dtype = self.df_english.dtypes[cn_weight]
-        assert (cn_dtype == float) | (cn_dtype == int), 'cn_weight needs to be a float/int not %s' % cn_dtype
+    def score_ciphers(self, set_best=True):
+        # self=enc;set_best=True
         n_encipher = self.idx_max['n_encipher']
         holder = np.zeros([n_encipher,2])
         self.word_list = []
@@ -124,12 +137,14 @@ class encipherer():
                 dtime = time() - stime
                 rate, n_left = i/dtime, n_encipher-i
                 eta = n_left / rate
-                print('Cipher %i of %i (ETA: %i seconds)' % (i+1, n_encipher, eta))
+                n_words = len(self.word_list)
+                print('Cipher %i of %i, n_words=%i (ETA: %i seconds)' % (i+1, n_encipher, n_words, eta))
             self.set_encipher(idx_pairing=i)
             self.get_corpus()
-            self.word_list = np.union1d(self.word_list,self.df_encipher['word'])
+            self.word_list = np.union1d(self.word_list,self.df_encipher['word_x'])
+            # Calcule the number of words and the weighted score
             n_i = self.df_encipher.shape[0]
-            w_i = self.df_encipher[cn_weight].sum()
+            w_i = self.df_encipher['weight'].sum()
             holder[i-1] = [n_i, w_i]
         # Get the rank
         self.df_score = pd.DataFrame(holder,columns=['n_word','weight'])
@@ -146,11 +161,11 @@ class encipherer():
     """
     def get_pos(self):
         pos_lst = [z[1] for z in nltk.pos_tag(self.df_english['word'].to_list())]
+        pos_lst = pd.Series(pos_lst).str.replace('[^A-Z]','',regex=True)
         self.df_english.insert(self.df_english.shape[1],'pos',pos_lst)
-        pos_def = pd.Series([capture(nltk.help.upenn_tagset,p) for p in self.df_english['pos'].unique()])
-        pos_def = pos_def.str.split('\\:\\s|\\n',expand=True,n=3).iloc[:,:2]
-        pos_def.rename(columns={0:'pos',1:'desc'},inplace=True)
-        self.df_english = self.df_english.merge(pos_def, 'left', 'pos')
+        self.pos_def = pd.Series([capture(nltk.help.upenn_tagset,p) for p in self.df_english['pos'].unique()])
+        self.pos_def = self.pos_def.str.split('\\:\\s|\\n',expand=True,n=3).iloc[:,:2]
+        self.pos_def.rename(columns={0:'pos',1:'desc'},inplace=True)
 
     """
     Deterministically returns encipher
@@ -192,9 +207,7 @@ class encipherer():
     """
     def alpha_trans(self, txt):
         # Remove any of the letters not to be found
-        if not isinstance(txt, pd.Series):
-            txt = pd.Series(txt)
-        z = txt.str.translate(self.trans)
+        z = pd.Series(str_translate(txt, self.trans))
         return z
 
     """

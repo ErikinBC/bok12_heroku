@@ -1,7 +1,30 @@
 import os
 import io
+import re
+import psutil
 import requests
 import contextlib
+import numpy as np
+
+# Vectorized string replace
+def gsub(string, pat, rep):
+    return re.sub(pat, rep, string)
+
+str_replace = np.vectorize(gsub, excluded=['pat','rep'])
+
+# Vectorize string translation
+def tsub(string, trans):
+    return string.translate(trans)
+
+str_translate = np.vectorize(tsub, excluded=['trans'])
+
+
+# Calculate total memory in use
+def all_mem():
+    process = psutil.Process(os.getpid())
+    mi = process.memory_info()
+    return sum([z for z in mi])
+
 
 # Capture print output
 def capture(fun,arg):
@@ -10,6 +33,7 @@ def capture(fun,arg):
         fun(arg)
     output = f.getvalue()
     return output
+
 
 # Save download
 def download(url, path=None, overwrite=False):
