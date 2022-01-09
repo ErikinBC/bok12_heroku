@@ -1,7 +1,6 @@
 import os
 import io
 import re
-import psutil
 import requests
 import contextlib
 import numpy as np
@@ -18,13 +17,12 @@ def tsub(string, trans):
 
 str_translate = np.vectorize(tsub, excluded=['trans'])
 
-
 # Calculate total memory in use
 def all_mem():
+    import psutil
     process = psutil.Process(os.getpid())
     mi = process.memory_info()
     return sum([z for z in mi])
-
 
 # Capture print output
 def capture(fun,arg):
