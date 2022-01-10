@@ -148,7 +148,9 @@ def update_text(idx, n_clicks, txt):
     if n_clicks > 0:
         # determine letters to remove
         plaintxt = pd.Series([txt]).str.replace(regex_verboten,'',regex=True)[0]
-        ciphertxt = str(enc.alpha_trans(plaintxt)[0])
+        ltxt = plaintxt.lower()
+        ctxt = str(enc.alpha_trans(ltxt)[0])
+        ciphertxt = ''.join([c.upper() if p.isupper() else c for p,c in zip(plaintxt, ctxt)])
         val1 = 'plaintext:\n' + plaintxt
         val2 = 'ciphertext:\n' + ciphertxt
         vv = [val1, val2]

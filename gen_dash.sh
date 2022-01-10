@@ -6,7 +6,7 @@
 unset letters
 unset name_heroko
 
-usage() { echo -e "At least one argument is empty\nUsage: $0 bash gen_dash.sh -l [letters] -n [your-app-name]\nExample: bash gen_dash.sh -l abcdef -n cipher-poem" 1>&2; exit 1; }
+usage() { echo -e "At least one argument is empty\nUsage: $0 bash gen_dash.sh -l [letters] -n [your-app-name]\nExample: bash gen_dash.sh -l etoaisnrlchdum -n cipher-poem" 1>&2; exit 1; }
 
 while getopts ":l:n:" o; do
     case "${o}" in
