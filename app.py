@@ -47,7 +47,7 @@ okay_letters = enc.letters.append(enc.letters.str.upper())
 regex_verboten = '[%s]' % ''.join(all_letters[~all_letters.isin(okay_letters)])
 
 app.layout = html.Div([
-    html.H2('Create your own enciphered poem'),
+    html.H2(html.A('Create your own enciphered poem', target='_blank', href='http://www.erikdrysdale.com/enciphered')),
     html.H3('Using only %i letters: %s' % (n_letters, letters)),
     html.Br(),
     html.Div([
