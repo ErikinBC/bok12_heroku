@@ -145,6 +145,12 @@ def update_idx(idx):   # idx=1
 )
 def update_text(idx, n_clicks, txt):
     # idx=1;n_clicks=1;txt='the and to a'
+
+    ridx = min(max(idx-1,0), n_enc-1)
+    idx = int(enc.df_score.loc[ridx]['idx'])
+    enc.set_encipher(idx_pairing=idx)
+    enc.get_corpus()
+
     if n_clicks > 0:
         # determine letters to remove
         plaintxt = pd.Series([txt]).str.replace(regex_verboten,'',regex=True)[0]
